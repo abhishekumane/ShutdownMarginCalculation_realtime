@@ -33,6 +33,8 @@ class DataShare:
 
         self.result=[]
 
+        self.data=[]
+
         self.fig = plt.figure()
         self.ax1 = self.fig.add_subplot(1, 1, 1)
 
@@ -126,6 +128,7 @@ class DataShare:
         ReactorPower = self.mem['QPROLD']['Val']
         PowerDefect_BOL = para.TotalPowerDefect_BOL * ReactorPower / para.HFP
         print(PowerDefect_BOL)
+        self.data.append(PowerDefect_BOL)
 
         ###################################################
         # EOL일때, 현출력 -> 0% 하기위한 출력 결손량을 계산하자.
@@ -133,6 +136,7 @@ class DataShare:
         ReactorPower = self.mem['QPROLD']['Val']
         PowerDefect_EOL = para.TotalPowerDefect_EOL * ReactorPower / para.HFP
         print(PowerDefect_EOL)
+        self.data.append(PowerDefect_EOL)
 
         ####################################################
         # 현재 연소도일때, 현출력 -> 0% 하기위한 출력 결손량을 계산하자.
@@ -142,18 +146,21 @@ class DataShare:
 
         PowerDefect_Burnup = B * C / A + 1602
         print(PowerDefect_Burnup)
+        self.data.append(PowerDefect_Burnup)
 
         ######################################################
         # 반응도 결손량을 계산하자
 
         PowerDefect_Final = PowerDefect_Burnup + para.VoidCondtent
         print(PowerDefect_Final)
+        self.data.append(PowerDefect_Final)
 
         #####################################################
         # 운전불가능 제어봉 제어능을 계산하자
 
-        InpoerableRodWorth = para.InoperableRodNumber * para.WorstStuckRodWorth
-        print(InpoerableRodWorth)
+        InoperableRodWorth = para.InoperableRodNumber * para.WorstStuckRodWorth
+        print(InoperableRodWorth)
+        self.data.append(InoperableRodWorth)
 
         ######################################################
         # 비정상 제어봉 제어능을 계산하자
@@ -161,38 +168,41 @@ class DataShare:
         if para.InoperableRodName == 'C':
             # print(para.BankWorth_C)
             AbnormalRodWorth = para.BankWorth_C / 8
-            print(AbnormalRodWorth)
-        elif para.InpoerableRodName == 'A':
+            return print(AbnormalRodWorth), self.data.append(AbnormalRodWorth)
+        elif para.InoperableRodName == 'A':
             AbnormalRodWorth = para.BankWorth_A / 8
-            print(AbnormalRodWorth)
+            return print(AbnormalRodWorth), self.data.append(AbnormalRodWorth)
         elif para.InoperableRodName == 'B':
             AbnormalRodWorth = para.BankWorth_B / 8
-            print(AbnormalRodWorth)
+            return print(AbnormalRodWorth), self.data.append(AbnormalRodWorth)
         elif para.InoperableRodName == 'D':
             AbnormalRodWorth = para.BankWorth_D / 8
-            print(AbnormalRodWorth)
+            return print(AbnormalRodWorth), self.data.append(AbnormalRodWorth)
 
         #####################################################
         # 운전 불능, 비정상 제어봉 제어능의 합을 계산하자
 
-        InoperableAbnormal_RodWorth = InpoerableRodWorth + AbnormalRodWorth
+        InoperableAbnormal_RodWorth = InoperableRodWorth + AbnormalRodWorth
         print(InoperableAbnormal_RodWorth)
+        self.data.append(InoperableAbnormal_RodWorth)
+
 
         #####################################################
         # 현 출력에서의 정지여유도를 계산하자
 
-        ShudownMargin = para.TotalRodWorth - InoperableAbnormal_RodWorth - PowerDefect_Final
-        print(ShudownMargin)
+        ShutdownMargin = para.TotalRodWorth - InoperableAbnormal_RodWorth - PowerDefect_Final
+        print(ShutdownMargin)
+        #self.data.append(ShutdownMargin)
 
         ######################################################
         # 정지여유도 제한치를 만족하는지 비교하자
 
-        if ShudownMargin >= para.ShutdownMarginValue:
+        if ShutdownMargin >= para.ShutdownMarginValue:
             self.result.append(1) #만족
-            return ShudownMargin, print('만족')
+            return ShutdownMargin, print('만족')#, self.data.append('만족')
         else:
             self.result.append(0) #불만족
-            return ShudownMargin, print('불만족')
+            return ShutdownMargin, print('불만족')#, self.data.append('불만족')
 
 
 
@@ -202,6 +212,9 @@ class DataShare:
         self.tt.append(a)
         print(self.tt)
 
+    def write(self):
+        print(self.data)
+
 if __name__ == '__main__':
 
     # unit test
@@ -209,5 +222,6 @@ if __name__ == '__main__':
     test.reset()
 
     test.make_gp()
+    test.write()
 
 

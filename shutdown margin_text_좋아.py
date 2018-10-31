@@ -17,6 +17,7 @@ from struct import pack, unpack
 from numpy import shape
 from time import sleep
 from parameter import para
+import csv
 
 
 class DataShare:
@@ -32,6 +33,9 @@ class DataShare:
         self.number = 0             ##
 
         self.result=[]
+
+        self.data=[]
+        #self.subdata=[]
 
         self.fig = plt.figure()
         self.ax1 = self.fig.add_subplot(1, 1, 1)
@@ -120,12 +124,15 @@ class DataShare:
 
     def ShutdownMarginCalculation(self):
 
+        subdata=[]
+
         ##################################################
         # BOL일때, 현출력 -> 0% 하기위한 출력 결손량을 계산하자.
 
         ReactorPower = self.mem['QPROLD']['Val']
         PowerDefect_BOL = para.TotalPowerDefect_BOL * ReactorPower / para.HFP
         print(PowerDefect_BOL)
+        subdata.append(PowerDefect_BOL)
 
         ###################################################
         # EOL일때, 현출력 -> 0% 하기위한 출력 결손량을 계산하자.
@@ -133,6 +140,7 @@ class DataShare:
         ReactorPower = self.mem['QPROLD']['Val']
         PowerDefect_EOL = para.TotalPowerDefect_EOL * ReactorPower / para.HFP
         print(PowerDefect_EOL)
+        subdata.append(PowerDefect_EOL)
 
         ####################################################
         # 현재 연소도일때, 현출력 -> 0% 하기위한 출력 결손량을 계산하자.
@@ -142,18 +150,21 @@ class DataShare:
 
         PowerDefect_Burnup = B * C / A + 1602
         print(PowerDefect_Burnup)
+        subdata.append(PowerDefect_Burnup)
 
         ######################################################
         # 반응도 결손량을 계산하자
 
         PowerDefect_Final = PowerDefect_Burnup + para.VoidCondtent
         print(PowerDefect_Final)
+        subdata.append(PowerDefect_Final)
 
         #####################################################
         # 운전불가능 제어봉 제어능을 계산하자
 
-        InpoerableRodWorth = para.InoperableRodNumber * para.WorstStuckRodWorth
-        print(InpoerableRodWorth)
+        InoperableRodWorth = para.InoperableRodNumber * para.WorstStuckRodWorth
+        print(InoperableRodWorth)
+        subdata.append(InoperableRodWorth)
 
         ######################################################
         # 비정상 제어봉 제어능을 계산하자
@@ -162,52 +173,78 @@ class DataShare:
             # print(para.BankWorth_C)
             AbnormalRodWorth = para.BankWorth_C / 8
             print(AbnormalRodWorth)
+            subdata.append(AbnormalRodWorth)
         elif para.InpoerableRodName == 'A':
             AbnormalRodWorth = para.BankWorth_A / 8
             print(AbnormalRodWorth)
+            subdata.append(AbnormalRodWorth)
         elif para.InoperableRodName == 'B':
             AbnormalRodWorth = para.BankWorth_B / 8
             print(AbnormalRodWorth)
+            subdata.append(AbnormalRodWorth)
         elif para.InoperableRodName == 'D':
             AbnormalRodWorth = para.BankWorth_D / 8
             print(AbnormalRodWorth)
+            subdata.append(AbnormalRodWorth)
 
         #####################################################
         # 운전 불능, 비정상 제어봉 제어능의 합을 계산하자
 
-        InoperableAbnormal_RodWorth = InpoerableRodWorth + AbnormalRodWorth
+        InoperableAbnormal_RodWorth = InoperableRodWorth + AbnormalRodWorth
         print(InoperableAbnormal_RodWorth)
+        subdata.append(InoperableAbnormal_RodWorth)
 
         #####################################################
         # 현 출력에서의 정지여유도를 계산하자
 
-        ShudownMargin = para.TotalRodWorth - InoperableAbnormal_RodWorth - PowerDefect_Final
-        print(ShudownMargin)
+        ShutdownMargin = para.TotalRodWorth - InoperableAbnormal_RodWorth - PowerDefect_Final
+        print(ShutdownMargin)
+        subdata.append(ShutdownMargin)
 
         ######################################################
         # 정지여유도 제한치를 만족하는지 비교하자
+        if ShutdownMargin >= para.ShutdownMarginValue:
+            label = "만족"
+        else:
+            label = "불만족"
 
-        if ShudownMargin >= para.ShutdownMarginValue:
+        with open('./data_save.txt', 'a') as f:
+            f.write('{},{},{},{},{},{},{},{}\t{}\n'.format(PowerDefect_BOL,PowerDefect_EOL,PowerDefect_Burnup,
+                                   PowerDefect_Final, InoperableRodWorth, AbnormalRodWorth, InoperableAbnormal_RodWorth,
+                                   ShutdownMargin, label))
+
+
+        if ShutdownMargin >= para.ShutdownMarginValue:
             self.result.append(1) #만족
-            return ShudownMargin, print('만족')
+            return print('만족'), subdata.append('만족'), self.data.append(subdata)
         else:
             self.result.append(0) #불만족
-            return ShudownMargin, print('불만족')
+            return print('불만족'), subdata.append('불만족'), self.data.append(subdata)
 
 
+    def write(self):
 
+        print(self.data)
 
-    def test(self):
-        a = self.mem['ZINST65']['Val'] + self.mem['UAVLEG1']['Val']
-        self.tt.append(a)
-        print(self.tt)
+    def csv(self):
+        with open('output.csv','w') as file:
+            writer =csv.writer(file)
+            writer.writerow(self.data)
+
+    def csv_np(self):
+        data3=np.array(self.data)
+        np.savetxt('./test3.csv',data3,delimiter=',')
 
 if __name__ == '__main__':
 
     # unit test
     test = DataShare('192.168.0.192', 8001)  # current computer ip / port
     test.reset()
-
     test.make_gp()
+    test.write()
+    #test.csv_np()
+
+
+
 
 
